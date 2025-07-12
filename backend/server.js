@@ -12,7 +12,7 @@ import whatsappRouter from './routes/whatsappRoute.js';
 // Import WhatsApp bot to initialize it with the server
 // import './whatsapp-bot.js';
 // import './whatsapp-bot-mac.js';
-import './whatsapp-bot-working.js';
+// import './whatsapp-bot-working.js'; // Commented out for Vercel deployment
 
 // App Config
 const app = express();
@@ -21,6 +21,10 @@ const port = process.env.PORT || 4000;
 // Connect to MongoDB
 connectDB().catch(err => {
     console.error('Failed to connect to MongoDB:', err);
+    // Don't exit in serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+        process.exit(1);
+    }
 });
 
 // Middlewares
@@ -28,8 +32,17 @@ app.use(express.json());
 
 // CORS Configuration
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Add your frontend URL
-    credentials: true
+    origin: [
+        'http://localhost:5173', 
+        'http://127.0.0.1:5173',
+        'https://*.vercel.app',
+        'https://*.netlify.app',
+        'https://*.onrender.com',
+        process.env.FRONTEND_URL
+    ].filter(Boolean), // Remove undefined values
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
 
 // Error handling middleware
@@ -50,10 +63,32 @@ app.use('/api/teacher', teacherRouter)
 app.use('/api/attendance', attendanceRouter)
 app.use('/api/whatsapp', whatsappRouter)
 
-app.get('/', (req, res) =>{
-    res.send("API Working")
-})
+// Health check endpoint
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: "API Working",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
 
-app.listen(port, () => {
-    console.log(`Server started on PORT: ${port}`)
-})
+// Health check for API
+app.get('/api/health', (req, res) => {
+    res.json({
+        success: true,
+        message: "API is healthy",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+// For Vercel serverless deployment
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Server started on PORT: ${port}`)
+    })
+}
+
+// Export for Vercel
+export default app;
