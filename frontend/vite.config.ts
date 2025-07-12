@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'https://backend-amber-iota-24.vercel.app',
         changeOrigin: true,
         secure: false,
       },
